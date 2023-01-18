@@ -1,3 +1,10 @@
+/* @file shell.c
+ * @brief The following code fufills the requirments of the Unix Shell project
+ * where the main driver serves as a shell interface that accpets commands and then executes them in seperate process. 
+ * @author Anthony Vu
+ * @date 01/18/2023
+ */
+
 #include <stdio.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -14,31 +21,32 @@ int main(void) {
     char *args[MAX_LINE / 2 + 1];
     int should_run = 1;
 
-    // stores most recent command
+    //stores the most recent command
     char histBuff[MAX_LINE + 1] = "No commands in history.\n";
 
     while (should_run) {
         printf("osh>");
         fflush(stdout);
 
-        // (0) read user input
         char input[MAX_LINE + 1];
-        fgets(input, MAX_LINE + 1, stdin); // save user input to "input" variable
+        
+        //saves the user input
+        fgets(input, MAX_LINE + 1, stdin);
 
-        if (strcmp(input,"exit\n") == 0) { // exit shell and terminate
+        //exits shell and terminate
+        if (strcmp(input,"exit\n") == 0) {
             should_run = 0;
-        } else { // handle commands
-
+        } else {
             // (1) fork a child process using fork()
             int pid = fork();
-
             // (2) the child process will invoke execvp()
-            if (pid == 0) { // Child
+            if (pid == 0) { 
                 char *tokens;
-                if (strcmp(input,"!!\n") == 0) { // echo and fetch most recent command
+                //echoes and fetches the most recent command
+                if (strcmp(input,"!!\n") == 0) { 
                     printf("%s", histBuff);
                     tokens = histBuff;
-                } else { // all other inputs
+                } else { 
                     tokens = input;
                     strcpy(histBuff,input);
                 }
@@ -47,9 +55,9 @@ int main(void) {
                 // if input contains any of the above, set respective flag to true
                 bool ampersand = false;
                 int ampIndex;
-                bool redirOut = false;
-                bool redirIn = false;
-                int redirIndex;
+                bool redirectOut = false;
+                bool redirectIn = false;
+                int redirectIndex; 
                 bool hasPipe = false;
                 int pipeIndex;
 
@@ -65,11 +73,11 @@ int main(void) {
                         ampersand = true;
                         ampIndex = i;
                     } else if (strcmp(args[i],">") == 0) {
-                        redirOut = true;
-                        redirIndex = i;
+                        redirectOut = true;
+                        redirectIndex = i;
                     } else if (strcmp(args[i],"<") == 0) {
-                        redirIn = true;
-                        redirIndex = i;
+                        redirectIn = true;
+                        redirectIndex = i;
                     } else if (strcmp(args[i],"|") == 0) {
                         hasPipe = true;
                         args[i] = NULL;
@@ -106,17 +114,17 @@ int main(void) {
                 }
 
                 // redirects the output of a command to a file
-                if (redirOut) {
-                    args[redirIndex] = NULL;
-                    FILE *fp = fopen(args[redirIndex + 1], "w");
+                if (redirectOut) {
+                    args[redirectIndex] = NULL;
+                    FILE *fp = fopen(args[redirectIndex + 1], "w");
                     int fd = fileno(fp);
                     dup2(fd,STDOUT_FILENO);
                     fclose(fp);
 
                 // redirects the input to a command from a file
-                } else if (redirIn) {
-                    args[redirIndex] = NULL;
-                    FILE *fp = fopen(args[redirIndex + 1], "r");
+                } else if (redirectIn) {
+                    args[redirectIndex] = NULL;
+                    FILE *fp = fopen(args[redirectIndex + 1], "r");
                     int fd = fileno(fp);
                     dup2(fd,STDIN_FILENO);
                     fclose(fp);
