@@ -1,58 +1,58 @@
 /* @file shell.c
  * @brief The following code fufills the requirments of the Unix Shell project
- * where the main driver serves as a shell interface that accpets commands and then executes them in seperate process. 
+ * where the main driver serves as a shell interface that accepts commands and then executes them in seperate processes. 
  * @author Anthony Vu
  * @date 01/18/2023
  */
-
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdbool.h>
 
-
-#define MAX_LINE 80
+#define MAX_LINE 80 /* The maximum length command */
 
 int main(void) {
-
     int status = 0;
-    char *args[MAX_LINE / 2 + 1];
-    int should_run = 1;
+    char *args[MAX_LINE / 2 + 1]; /* command line arguemnts */
+    int should_run = 1; /* flag to determine when to exit program */
 
-    //stores the most recent command
-    char histBuff[MAX_LINE + 1] = "No commands in history.\n";
+    char historyBuff[MAX_LINE + 1] = "No commands in history.\n";
 
     while (should_run) {
         printf("osh>");
         fflush(stdout);
 
+        /** 
+         * After reading user input, the steps are:
+         * (1) fork a child process using for()
+         * (2) the child process will invoke execvp()
+         * (3) oarent will invoke wait() unless command included &
+         */
+
         char input[MAX_LINE + 1];
         
-        //saves the user input
+        //saves user input
         fgets(input, MAX_LINE + 1, stdin);
 
         //exits shell and terminate
         if (strcmp(input,"exit\n") == 0) {
             should_run = 0;
         } else {
-            // (1) fork a child process using fork()
+            //forks a child process using fork()
             int pid = fork();
-            // (2) the child process will invoke execvp()
+            //child processes invokes execvp()
             if (pid == 0) { 
                 char *tokens;
-                //echoes and fetches the most recent command
                 if (strcmp(input,"!!\n") == 0) { 
-                    printf("%s", histBuff);
-                    tokens = histBuff;
+                    printf("%s", historyBuff);
+                    tokens = historyBuff;
                 } else { 
                     tokens = input;
-                    strcpy(histBuff,input);
+                    strcpy(historyBuff, input);
                 }
 
-                // flags and indices for '&', '>', '<', and '|'
-                // if input contains any of the above, set respective flag to true
                 bool ampersand = false;
                 int ampIndex;
                 bool redirectOut = false;
@@ -61,11 +61,10 @@ int main(void) {
                 bool hasPipe = false;
                 int pipeIndex;
 
-                // set last character to "null"
                 tokens[strlen(tokens)-1] = 0;
                 tokens = strtok(tokens, " ");
 
-                // split string and insert tokens to 'args'
+                //splits the string and inserts tokens to 'args'
                 int i = 0;
                 while (tokens) {
                     args[i] = tokens;
@@ -83,19 +82,17 @@ int main(void) {
                         args[i] = NULL;
                         pipeIndex = i;
 
-                        // create pipe
+                        //create pipe
                         int pipeFD[2];
                         pipe(pipeFD);
-
                         int pidPipe = fork();
 
-                        // left side of pipe
+                        //left
                         if (pidPipe == 0) {
                             close(pipeFD[0]);
                             dup2(pipeFD[1],STDOUT_FILENO);
                             execvp(args[0], args);
-
-                        // right side of pipe
+                        //right
                         } else {
                             close(pipeFD[1]);
                             dup2(pipeFD[0],STDIN_FILENO);
@@ -105,15 +102,12 @@ int main(void) {
                     tokens = strtok (NULL, " ");
                     i++;
                 }
-                // one extra element for the last NULL
                 args[i] = NULL;
-
-                // dont use '&' as argument
+                //dont use '&' as argument
                 if (ampersand) {
                     args[ampIndex] = NULL;
                 }
-
-                // redirects the output of a command to a file
+                //redirects output
                 if (redirectOut) {
                     args[redirectIndex] = NULL;
                     FILE *fp = fopen(args[redirectIndex + 1], "w");
@@ -121,28 +115,24 @@ int main(void) {
                     dup2(fd,STDOUT_FILENO);
                     fclose(fp);
 
-                // redirects the input to a command from a file
+                //redirects input
                 } else if (redirectIn) {
                     args[redirectIndex] = NULL;
                     FILE *fp = fopen(args[redirectIndex + 1], "r");
                     int fd = fileno(fp);
                     dup2(fd,STDIN_FILENO);
                     fclose(fp);
-
-                // special case for pipe: execvp() from after pipe
                 } else if(hasPipe) {
                     execvp(args[pipeIndex + 1], args);
                 }
                 execvp(args[0], args);
                 exit(status);
-            } else { // Parent
-
-                // copy input to most recent command
+            } else {
                 if (strcmp(input,"!!\n") != 0) {
-                    strcpy(histBuff, input);
+                    strcpy(historyBuff, input);
                 }
 
-                // (3) parent will invoke wait() unless command included '&'
+                //parent invokes wait() unless command included '&'
                 if (input[strlen(input) - 2] != '&') {
                     wait(NULL);
                     sleep(1);
