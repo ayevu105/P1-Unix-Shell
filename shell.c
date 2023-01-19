@@ -28,7 +28,7 @@ int main(void) {
          * After reading user input, the steps are:
          * (1) fork a child process using for()
          * (2) the child process will invoke execvp()
-         * (3) oarent will invoke wait() unless command included &
+         * (3) parent will invoke wait() unless command included &
          */
 
         char input[MAX_LINE + 1];
@@ -40,9 +40,7 @@ int main(void) {
         if (strcmp(input,"exit\n") == 0) {
             should_run = 0;
         } else {
-            //forks a child process using fork()
             int pid = fork();
-            //child processes invokes execvp()
             if (pid == 0) { 
                 char *tokens;
                 if (strcmp(input,"!!\n") == 0) { 
@@ -131,8 +129,6 @@ int main(void) {
                 if (strcmp(input,"!!\n") != 0) {
                     strcpy(historyBuff, input);
                 }
-
-                //parent invokes wait() unless command included '&'
                 if (input[strlen(input) - 2] != '&') {
                     wait(NULL);
                     sleep(1);
